@@ -1,1 +1,4 @@
 .aws-sam
+.env
+env.json
+hello-world/vendor

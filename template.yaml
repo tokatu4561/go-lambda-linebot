@@ -27,7 +27,8 @@ Resources:
             Method: POST
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
-          PARAM1: VALUE
+          LINE_BOT_CHANNEL_SECRET:
+          LINE_BOT_CHANNEL_TOKEN:
   UserDynamoDBTable:
     Type: AWS::Serverless::SimpleTable
     Properties:

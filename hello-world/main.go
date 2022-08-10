@@ -42,12 +42,12 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 
 	if err != nil {
-		log.Fatal(err)
+		return events.APIGatewayProxyResponse{Body: "接続エラー", StatusCode: 200}, err
 	}
 
 	lineEvents, err := ParseRequest(line.ChannelSecret, request)
     if err != nil {
-        log.Fatal(err)
+        return events.APIGatewayProxyResponse{Body: "接続エラー", StatusCode: 200}, err
     }
 	fmt.Println(lineEvents)
 
