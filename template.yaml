@@ -27,6 +27,7 @@ Resources:
             Method: POST
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
+          API_KEY:
           LINE_BOT_CHANNEL_SECRET:
           LINE_BOT_CHANNEL_TOKEN:
   UserDynamoDBTable:

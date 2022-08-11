@@ -2,11 +2,13 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"encoding/json"
 	"log"
 	"os"
-	"io"
+	"fmt"
+	"strconv"
+	"net/http"
+	"io/ioutil"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -31,6 +33,19 @@ type Line struct {
 	Client        *linebot.Client
 }
 
+type response struct {
+	Results results `json:"results"`
+}
+
+type results struct {
+	Shop []shop `json:"shop"`
+}
+
+type shop struct {
+	Name string `json:"name"`
+	Address string `json:"address"`
+}
+
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	bot, err := linebot.New(
 		os.Getenv("LINE_BOT_CHANNEL_SECRET"),
@@ -51,23 +66,27 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
         return events.APIGatewayProxyResponse{Body: "接続エラー", StatusCode: 200}, err
     }
 
-	fmt.Fprint(os.Stdout, lineEvents)
-
+	log.Println("LINEイベント")
+	
 	for _, event := range lineEvents {
 		// イベントがメッセージの受信だった場合
 		if event.Type == linebot.EventTypeMessage {
 			switch message := event.Message.(type) {
-			// メッセージがテキスト形式の場合
+			
 			case *linebot.TextMessage:
+				log.Println(message)
 				replyMessage := message.Text
 				_, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do()
 				if err != nil {
-					log.Print(err)
+					return events.APIGatewayProxyResponse{}, err
 				}
-			// メッセージが位置情報の場合
-			// case *linebot.LocationMessage:
-			// 	sendRestoInfo(bot, event)
-			// }
+				break
+			case *linebot.LocationMessage:
+				err = sendShopListInfo(line.Client, event)
+				if err != nil {
+					return events.APIGatewayProxyResponse{}, err
+				}
+				break		
 			default:
 			}
 		}
@@ -105,14 +124,52 @@ func ParseRequest(channelSecret string, r events.APIGatewayProxyRequest) ([]*lin
 	return req.Events, nil
 }
 
-func initLogSetting() {
-	logfile, _ := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+func sendShopListInfo(lineClient *linebot.Client, e *linebot.Event) error {
+	msg := e.Message.(*linebot.LocationMessage)
 
-	multiLogFile := io.MultiWriter(os.Stdout, logfile)
-	log.SetOutput(multiLogFile)
+	lat := strconv.FormatFloat(msg.Latitude, 'f', 2, 64)
+	lng := strconv.FormatFloat(msg.Longitude, 'f', 2, 64)
+
+	replyMsg, err := getShopListInfo(lat, lng)
+	if err != nil {
+		return err
+	}
+
+	_, err = lineClient.ReplyMessage(e.ReplyToken, linebot.NewTextMessage(replyMsg)).Do()
+
+	return err
+}
+
+func getShopListInfo(latitude string, longitude string) (string, error) {
+	apikey := fmt.Sprintf("%s", os.Getenv("API_KEY"))
+
+	url := fmt.Sprintf("https://webservice.recruit.co.jp/hotpepper/gourmet/v1/?format=json&genre=G016&key=%s&lat=%s&lng=%s", apikey, latitude, longitude)
+	log.Println(url)
+	
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var responseData response
+	if err := json.Unmarshal(body, &responseData); err != nil {
+		return "", err
+	}
+
+	info := ""
+	for _, shop := range responseData.Results.Shop {
+		info += shop.Name + "\n" + shop.Address + "\n\n"
+	}
+
+	return info, nil
 }
 
 func main() {
-	initLogSetting()
 	lambda.Start(handler)
 }
