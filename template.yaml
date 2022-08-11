@@ -4,6 +4,13 @@ Description: >
   aws-golang
   
   Sample SAM Template for aws-golang
+Parameters: 
+  ApiKey: 
+    Type: String
+  LineBotChannelSecret:
+    Type: String
+  LineBotChannelToken:
+    Type: String
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -14,6 +21,11 @@ Resources:
   HelloWorldFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
+      Environment: 
+        Variables:
+          API_KEY: !Ref ApiKey
+          LINE_BOT_CHANNEL_SECRET: !Ref LineBotChannelSecret
+          LINE_BOT_CHANNEL_TOKEN: !Ref LineBotChannelToken
       CodeUri: hello-world/
       Handler: hello-world
       Runtime: go1.x
@@ -25,20 +37,21 @@ Resources:
           Properties:
             Path: /hello
             Method: POST
-      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
-        Variables:
-          API_KEY:
-          LINE_BOT_CHANNEL_SECRET:
-          LINE_BOT_CHANNEL_TOKEN:
-  UserDynamoDBTable:
-    Type: AWS::Serverless::SimpleTable
-    Properties:
-      PrimaryKey:
-        Name: Id
-        Type: Number
-      ProvisionedThroughput:
-        ReadCapacityUnits: 2
-        WriteCapacityUnits: 2
+      # Environment: 
+      #   Variables:
+      #     API_KEY:
+      #     LINE_BOT_CHANNEL_SECRET:
+      #     LINE_BOT_CHANNEL_TOKEN:
+        
+  # UserDynamoDBTable:
+  #   Type: AWS::Serverless::SimpleTable
+  #   Properties:
+  #     PrimaryKey:
+  #       Name: Id
+  #       Type: Number
+  #     ProvisionedThroughput:
+  #       ReadCapacityUnits: 2
+  #       WriteCapacityUnits: 2
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function

@@ -2,3 +2,4 @@
 .env
 env.json
 hello-world/vendor
+samconfig.toml
