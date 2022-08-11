@@ -44,6 +44,20 @@ type results struct {
 type shop struct {
 	Name string `json:"name"`
 	Address string `json:"address"`
+	Photo photo `json:photo`
+	URLS urls `json:urls`
+}
+
+type photo struct {
+	Mobile mobile `json:mobile`
+}
+
+type mobile struct {
+	L string `json:"l"`
+}
+
+type urls struct {
+	PC string `json:"pc"`
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -135,39 +149,52 @@ func sendShopListInfo(lineClient *linebot.Client, e *linebot.Event) error {
 		return err
 	}
 
-	_, err = lineClient.ReplyMessage(e.ReplyToken, linebot.NewTextMessage(replyMsg)).Do()
+	res := linebot.NewTemplateMessage(
+		"ラーメン一覧",
+		linebot.NewCarouselTemplate(replyMsg...).WithImageOptions("rectangle", "cover"),
+	)
+
+	_, err = lineClient.ReplyMessage(e.ReplyToken, res).Do()
 
 	return err
 }
 
-func getShopListInfo(latitude string, longitude string) (string, error) {
+func getShopListInfo(latitude string, longitude string) ([]*linebot.CarouselColumn, error) {
 	apikey := fmt.Sprintf("%s", os.Getenv("API_KEY"))
 
-	url := fmt.Sprintf("https://webservice.recruit.co.jp/hotpepper/gourmet/v1/?format=json&genre=G016&key=%s&lat=%s&lng=%s", apikey, latitude, longitude)
-	log.Println(url)
+	url := fmt.Sprintf("https://webservice.recruit.co.jp/hotpepper/gourmet/v1/?format=json&genre=G013&range=5&key=%s&lat=%s&lng=%s", apikey, latitude, longitude)
 	
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var responseData response
 	if err := json.Unmarshal(body, &responseData); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	info := ""
+	var ccs []*linebot.CarouselColumn
 	for _, shop := range responseData.Results.Shop {
-		info += shop.Name + "\n" + shop.Address + "\n\n"
+		addr := shop.Address
+		// if 60 < utf8.Rune
+		cc := linebot.NewCarouselColumn(
+			shop.Photo.Mobile.L,
+			shop.Name,
+			addr,
+			linebot.NewURIAction("詳細", shop.URLS.PC),
+		).WithImageOptions("#FFFFFF")
+		
+		ccs = append(ccs, cc)
 	}
 
-	return info, nil
+	return ccs, nil
 }
 
 func main() {
