@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"io"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -49,7 +50,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
     if err != nil {
         return events.APIGatewayProxyResponse{Body: "接続エラー", StatusCode: 200}, err
     }
-	fmt.Println(lineEvents)
+
+	fmt.Fprint(os.Stdout, lineEvents)
 
 	for _, event := range lineEvents {
 		// イベントがメッセージの受信だった場合
@@ -103,6 +105,14 @@ func ParseRequest(channelSecret string, r events.APIGatewayProxyRequest) ([]*lin
 	return req.Events, nil
 }
 
+func initLogSetting() {
+	logfile, _ := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+
+	multiLogFile := io.MultiWriter(os.Stdout, logfile)
+	log.SetOutput(multiLogFile)
+}
+
 func main() {
+	initLogSetting()
 	lambda.Start(handler)
 }
